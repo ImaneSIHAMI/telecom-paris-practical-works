@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# LaTeX temporary files
+*.aux
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.synctex.gz
+*.toc
+
+# Editors and operating systems
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Local publishing guide (not part of the public academic repository)
+GITHUB_SETUP.md
+
