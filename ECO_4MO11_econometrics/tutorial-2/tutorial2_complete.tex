@@ -1,0 +1,233 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=2.1cm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb,amsthm,booktabs,array,enumitem,graphicx,xcolor,hyperref,fancyhdr}
+\hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{5pt}
+\setlist[enumerate]{itemsep=5pt,topsep=3pt}
+\pagestyle{fancy}\fancyhf{}\lhead{Introductory Econometrics --- Tutorial 2}\rhead{\thepage}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\bhat}{\widehat{\beta}}
+\newcommand{\key}[1]{\begin{center}\fbox{\begin{minipage}{0.94\linewidth}#1\end{minipage}}\end{center}}
+\title{\textbf{Tutorial 2 --- Complete Solutions}\\\large Multiple Regression and Partial Effects}
+\author{Introductory Econometrics --- T\'el\'ecom Paris}
+\date{Based on the supplied Tutorial 2 handout and Python lab}
+\begin{document}
+\maketitle
+\noindent\textbf{Scope.} Answers follow the order and notation of the supplied \texttt{exercises.pdf}. Numerical results were obtained by running the completed \texttt{code/lab2.py} on the original \texttt{data/WAGE1.raw} (526 workers). The script reproduces the tables and figures in \texttt{code/output/}.
+
+\newpage
+\section{Theory Exercise 1 --- What does a higher $R^2$ establish?}
+On the same $n$ observations, consider the nested models
+\[
+\text{A: }y_i=a_0+a_1x_{1i}+u_i,\qquad
+\text{B: }y_i=b_0+b_1x_{1i}+b_2x_{2i}+v_i.
+\]
+Both include an intercept and have full column rank. Denote the residual sums of squares by $RSS_A$ and $RSS_B$.
+\subsection*{(a) Show that $RSS_B\le RSS_A$}
+The parameter vector $(a_0,a_1,0)$ is feasible in Model B and reproduces every fitted value from Model A. Since OLS minimizes the residual sum of squares over all coefficients of Model B,
+\[
+RSS_B=\min_{b_0,b_1,b_2}\sum_i(y_i-b_0-b_1x_{1i}-b_2x_{2i})^2
+\le \sum_i(y_i-\widehat a_0-\widehat a_1x_{1i})^2=RSS_A.
+\]
+\key{$\boxed{RSS_B\le RSS_A}$: Adding a regressor cannot worsen the in-sample OLS fit when the sample stays the same.}
+\subsection*{(b) Compare the two $R^2$ values; equality condition}
+With an intercept and a common outcome/sample, $TSS=\sum_i(y_i-\bar y)^2$ is identical for both models. Therefore,
+\[
+R_B^2=1-\frac{RSS_B}{TSS}\ge 1-\frac{RSS_A}{TSS}=R_A^2.
+\]
+Equality holds if and only if $RSS_B=RSS_A$. Under the stated full-rank assumption, this occurs exactly when the estimated coefficient of the added regressor is zero: $\widehat b_2=0$ (equivalently, the added variable has no sample partial contribution after controlling for the intercept and $x_1$).
+\key{$\boxed{R_B^2\ge R_A^2,\qquad R_B^2=R_A^2\iff\widehat b_2=0.}$}
+\subsection*{(c) Why a larger $R^2$ does not imply a better causal model}
+$R^2$ measures the fraction of sample outcome variation explained by the fitted linear model. It does \emph{not} test whether the regressors are exogenous, whether confounders are omitted, or whether a control is a mediator/collider. Adding an irrelevant or endogenous variable can raise $R^2$ without making a causal interpretation valid. Causality requires substantive identification assumptions, especially an appropriate zero-conditional-mean assumption.
+\subsection*{(d) Why adjusted $R^2$ can fall; derive the condition}
+For $k$ slope regressors plus an intercept,
+\[
+\overline R^2=1-\frac{RSS/(n-k-1)}{TSS/(n-1)}.
+\]
+Model A has $k_A=1$ and Model B has $k_B=2$. Thus,
+\begin{align*}
+\overline R_B^2\ge\overline R_A^2
+&\iff \frac{RSS_B}{n-3}\le\frac{RSS_A}{n-2}\\
+&\iff \boxed{\frac{RSS_B}{RSS_A}\le\frac{n-3}{n-2}}\\
+&\iff \boxed{RSS_A-RSS_B\ge\frac{RSS_A}{n-2}}.
+\end{align*}
+For $RSS_B>0$, the equivalent partial $F$ statistic for adding one regressor is
+\[
+F=\frac{(RSS_A-RSS_B)/1}{RSS_B/(n-3)}\ge 1.
+\]
+Adjusted $R^2$ falls if the reduction in RSS is too small to offset the loss of one residual degree of freedom. This is an \emph{in-sample penalized-fit} criterion, not a causal-validity test.
+
+\section{Python Lab 1 --- Does adding controls solve the education--wage problem?}
+\textbf{Sample and variables:} $n=526$ workers from the historical US cross-section; $wage$ is hourly earnings in 1976 US dollars; $educ$, $exper$, $tenure$ are in years. Both regressions use the same 526 observations.
+\[
+\text{Model A: }\log(wage_i)=a_0+a_1 educ_i+v_i,
+\]
+\[
+\text{Model B: }\log(wage_i)=b_0+b_1 educ_i+b_2 exper_i+b_3 tenure_i+u_i.
+\]
+\subsection{Step 1 --- Define the comparison before estimating}
+\textbf{(a) Which workers are compared? What is fixed? Is it causal?}
+
+Model B compares workers who have the same experience and tenure but different education levels. The coefficient $b_1$ is a \emph{partial association} holding $exper$ and $tenure$ fixed. This comparison is not automatically causal: unobserved ability, family background and other factors may jointly influence education and wages.
+
+\textbf{(b) Predict the omitted-variable direction.}
+
+The sample correlations are
+\[
+\operatorname{Corr}(educ,exper)=-0.299542,\quad
+\operatorname{Corr}(educ,tenure)=-0.056173,\quad
+\operatorname{Corr}(exper,tenure)=0.499291.
+\]
+If both experience and tenure have positive \emph{partial} wage effects, and each has a negative slope in its auxiliary regression on education, omitting them would tend to bias the simple education slope \emph{downward}. The correlation signs are suggestive, not conclusive by themselves, especially with multiple omitted regressors. The precise bias depends on the relevant auxiliary slopes and conditional effects.
+
+\subsection{Step 2 --- Estimate and explain the coefficient change}
+The completed Python script estimates both models with \texttt{statsmodels.formula.api.ols}.
+\begin{center}
+\begin{tabular}{lrr}
+\toprule
+Quantity & Model A & Model B\\
+\midrule
+Education coefficient & 0.082744 & 0.092029\\
+Experience coefficient & --- & 0.004121\\
+Tenure coefficient & --- & 0.022067\\
+Observations & 526 & 526\\
+$R^2$ & 0.185806 & 0.316013\\
+\bottomrule
+\end{tabular}
+\end{center}
+\textbf{(a) How much does the education coefficient change? Interpretation.}
+\[
+\Delta\widehat b_{educ}=0.092029-0.082744=\boxed{+0.009285}.
+\]
+That is an increase of about $0.929$ percentage points in the approximate semi-log interpretation. In Model B, one additional year of education is associated with \textbf{approximately 9.20\% higher hourly wages}, holding experience and tenure fixed. The exact fitted proportional comparison for one year is
+\[
+100(e^{0.092029}-1)\approx\boxed{9.64\%}.
+\]
+These are associations, not identified causal returns.
+
+\textbf{(b) Does the direction match the prediction?}
+
+Yes. The education slope increases from Model A to B, consistent with the prediction that omitting positively wage-associated experience and tenure can push the simple slope downward. Model A's error contains their wage contributions; because the controls and education are correlated, the simple education slope also absorbs part of their association with wages.
+
+\textbf{(c) Why must $R_B^2\ge R_A^2$? Does this establish exogeneity?}
+
+Model A is nested in B and both use the same sample. OLS can always choose zero coefficients for the extra controls, so $RSS_B\le RSS_A$ and $R_B^2\ge R_A^2$. The observed rise from 0.186 to 0.316 does \emph{not} establish $\E(u\mid educ,exper,tenure)=0$.
+
+\subsection{Step 3 --- Audit exogeneity as part of the analysis}
+\textbf{(a) What does zero conditional mean require? Three plausible confounders.}
+\[
+\boxed{\E(u\mid educ,exper,tenure)=0.}
+\]
+At every combination of education, experience and tenure, the mean of unobserved wage determinants must be zero. Potential confounders include (i) \emph{ability}: can affect schooling success and productivity; (ii) \emph{parental resources/background}: can affect access to education and job opportunities; and (iii) \emph{local labor-market opportunities}: may affect schooling decisions and wages. Unmeasured ability is particularly concerning because it is difficult to capture fully with observed controls.
+
+\textbf{(b) Parents' education, a pre-school test score, and current occupation.}
+
+Parents' education and a test score measured \emph{before} schooling may proxy for pre-existing family resources or ability. Current occupation may instead be an outcome of education and a channel through which education affects wages. Controlling for occupation can therefore remove part of a total education effect.
+
+\textbf{(c) Why not add every variable? Give two reasons.}
+\begin{enumerate}[label=\arabic*.]
+\item \textbf{Mediators and timing:} occupation, and possibly some measured experience or tenure, may be affected by education. Conditioning on them can change the estimand from a total to a direct effect.
+\item \textbf{Selection/collider bias:} controlling for a variable influenced by both schooling and unobserved wage determinants can create spurious conditional associations. Controls must be selected using a causal rationale, not only predictive fit.
+\end{enumerate}
+\textbf{(d) Three-sentence conclusion.}
+
+Holding experience and tenure fixed, one additional year of education is associated with approximately 9.20\% higher hourly wages. The coefficient increases relative to the education-only model because omitted experience and tenure are associated with education and wages. Unobserved ability and family background remain major threats to a causal interpretation.
+
+\section{Python Lab 2 --- What partialling out does and does not show}
+Use experience and tenure as the controls. Define $Z=[\mathbf 1,exper,tenure]$ and $x=educ$, $y=\log(wage)$.
+
+\subsection*{(a) Regress education on the controls and save $r_x$}
+Estimate $educ_i=\gamma_0+\gamma_1 exper_i+\gamma_2 tenure_i+r_{xi}$. A \textbf{positive education residual} means a worker has more education than predicted by their experience and tenure under this fitted linear relationship.
+
+\subsection*{(b) Apply Lecture 2, slide 14}
+By the Frisch--Waugh--Lovell result,
+\[
+\boxed{\widehat b_1=\frac{\sum_i r_{xi}\log(wage_i)}{\sum_i r_{xi}^2}}.
+\]
+The code computes this using the \texttt{@} operator for inner products:
+\begin{verbatim}
+lecture_slope = float(
+    education_residual @ df["log_wage"]
+    / (education_residual @ education_residual)
+)
+\end{verbatim}
+Numerically,
+\[
+\underbrace{0.092028987319613}_{\text{slide-14 formula}}
+\approx \underbrace{0.092028987319615}_{\text{Model B OLS coefficient}}.
+\]
+Only the part of education \emph{not linearly predicted} by experience and tenure identifies the education slope in Model B.
+
+\subsection*{(c) Residualize log wage as well; regress $r_y$ on $r_x$}
+Regress $y$ on $Z$ and save $r_y$. Then regress $r_y$ on $r_x$ with an intercept. Because OLS residuals from models with intercepts have mean zero, the residual-on-residual intercept is zero up to numerical precision:
+\[
+\widehat\alpha=-7.54\times 10^{-16}\approx 0,\qquad
+\widehat\delta=0.092028987319614.
+\]
+The slope is the same as in (b) and Model B because $r_x$ is orthogonal to $Z$, so $\sum_i r_{xi}y_i=\sum_i r_{xi}r_{yi}$. This is an \textbf{algebraic OLS identity}; it does \emph{not} provide evidence for $\E(u\mid educ,exper,tenure)=0$.
+
+\section{Python Lab 3 --- When a precise regression answers the wrong question}
+The professor's Monte Carlo script simulates $n=150$ observations and $3{,}000$ repetitions for each correlation $\rho\in\{0.2,0.99\}$ from
+\[
+y=1+x_1+x_2+u,\quad \E(u\mid x_1,x_2)=0,\quad \operatorname{Corr}(x_1,x_2)=\rho.
+\]
+The \emph{full} regression includes both $x_1$ and $x_2$; the \emph{short} regression omits $x_2$.
+\subsection*{(a) Predict the centres before running}
+The true full-model partial effect of $x_1$ is $\beta_1=1$. The omitted-variable formula for the short regression gives
+\[
+\operatorname{plim}\widehat\beta_{1,short}=\beta_1+\beta_2\delta
+=1+1\cdot\rho=\boxed{1+\rho},
+\]
+where $\delta=\rho$ is the population slope from regressing $x_2$ on $x_1$ (both have unit variance). The predicted short-model centres are $1.2$ for $\rho=0.2$ and $1.99$ for $\rho=0.99$.
+
+\subsection*{(b) Compare full-model mean and standard deviation}
+\begin{center}
+\begin{tabular}{lrr}
+\toprule
+Simulation statistic & $\rho=0.20$ & $\rho=0.99$\\
+\midrule
+Mean of full $\widehat\beta_1$ & 0.998334 & 1.003532\\
+SD of full $\widehat\beta_1$ & 0.084088 & 0.594605\\
+Mean of full $\widehat\beta_2$ & 1.001549 & 0.995563\\
+SD of full $\widehat\beta_2$ & 0.084718 & 0.595313\\
+Corr(full $\widehat\beta_1$, full $\widehat\beta_2$) & -0.217298 & -0.990120\\
+SD of $\widehat\beta_1+\widehat\beta_2$ & 0.105603 & 0.083638\\
+Mean of short slope & 1.198236 & 1.989213\\
+SD of short slope & 0.112801 & 0.084060\\
+\bottomrule
+\end{tabular}
+\end{center}
+The full-model coefficient stays centred close to 1 in both designs. Its sampling SD increases sharply with $\rho$ because $x_1$ has little residual variation after controlling for $x_2$. \textbf{High multicollinearity increases variance, not bias}, under the correctly specified exogenous full model.
+
+\subsection*{(c) Why are the two full-model slopes negatively related? Why is their sum stable?}
+When $\rho\approx1$, $x_1$ and $x_2$ move almost together. A larger estimated coefficient on $x_1$ can be offset by a smaller one on $x_2$ with little change in fitted $y$. This creates a strong negative correlation ($-0.9901$) between coefficient estimates. Their \emph{sum} is more stable because the combined effect along the shared direction is well identified, even though the two separate effects are imprecise.
+
+\subsection*{(d) Compare full and short models at $\rho=0.99$}
+The short slope is much more precise (SD $0.0841$) than the full slope (SD $0.5946$), but it is centred near $1.99$, not the true partial effect $1$. It estimates the combined association of $x_1$ with $y$, including the omitted $x_2$ contribution. \textbf{Precision around the wrong target is not accuracy for the partial effect.}
+
+\subsection*{(e) Should $x_2$ be deleted to reduce the standard error?}
+No, not if the goal is to estimate the partial effect of $x_1$ and $x_2$ truly belongs in the model. Removing $x_2$ reduces variance but introduces omitted-variable bias. The choice of controls should follow the estimand and identification assumptions; a small standard error is not sufficient justification.
+
+\subsection*{Simulation figure}
+The completed Python script saves \texttt{code/output/lab3\_multicollinearity.png}. If the figure exists in the project, it is included below.
+\begin{center}
+\IfFileExists{../code/output/lab3_multicollinearity.png}{\includegraphics[width=\linewidth]{../code/output/lab3_multicollinearity.png}}{\emph{Run code/lab2.py to generate the simulation figure.}}
+\end{center}
+
+\section{Run instructions}
+Keep the supplied structure:
+\begin{verbatim}
+tutorial-2/
+  exercises.pdf
+  data/WAGE1.raw
+  code/lab2.py
+  code/output/                  (generated automatically)
+  report/tutorial2_complete.tex
+\end{verbatim}
+Install the Python requirements with \texttt{python -m pip install -r requirements.txt} from the \texttt{tutorial-2} directory. Run \texttt{python code/lab2.py}. Compile this report from the \texttt{report/} directory using \texttt{pdflatex tutorial2\_complete.tex} twice, or upload the \texttt{.tex} file to Overleaf with the generated image if desired.
+\end{document}
